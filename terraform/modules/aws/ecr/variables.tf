@@ -3,8 +3,7 @@ variable "project_name" {
   type        = string
 }
 
-variable "vpc_cidr" {
-  description = "CIDR block for the VPC"
+variable "name" {
+  description = "Name of the ECR repository"
   type        = string
-  default     = "10.0.0.0/16"
 }

@@ -1,12 +1,12 @@
 data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = {
-    Name = "devops-vpc"
+    Name = "${var.project_name}-vpc"
   }
 }
 
@@ -18,7 +18,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "public-subnet-${count.index}"
+    Name = "${var.project_name}-subnet-public-${count.index}"
   }
 }
 
@@ -26,7 +26,7 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "devops-igw"
+    Name = "${var.project_name}-igw"
   }
 }
 
@@ -39,7 +39,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "devops-public-rt"
+    Name = "${var.project_name}-rtb"
   }
 }
 
@@ -67,6 +67,10 @@ resource "aws_security_group" "lb" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Name = "${var.project_name}-alb-sg"
+  }
 }
 
 resource "aws_security_group" "app" {
@@ -86,5 +90,17 @@ resource "aws_security_group" "app" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Allow traffic within security group (RDS <-> ECS)
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    self      = true
+  }
+
+  tags = {
+    Name = "${var.project_name}-app-sg"
   }
 }

@@ -1,17 +1,30 @@
 resource "aws_lb" "app" {
-  name               = "challenge-alb"
+  name               = "${var.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
   subnets            = var.public_subnet_ids
   security_groups    = [var.lb_sg_id]
+
+  tags = {
+    Name = "${var.project_name}-alb"
+  }
 }
 
 resource "aws_lb_target_group" "app" {
-  name        = "challenge-tg"
+  name        = "${var.project_name}-tg"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
+
+  # Basic health check endpoint
+  health_check {
+    path = "/health"
+  }
+
+  tags = {
+    Name = "${var.project_name}-tg"
+  }
 }
 
 resource "aws_lb_listener" "http" {

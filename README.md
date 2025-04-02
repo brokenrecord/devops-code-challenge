@@ -1,3 +1,7 @@
+> ** Solution below! ** [Jump to Solution](#solution) **
+
+---
+
 # 🚀 DevOps Technical Challenge: FastAPI on ECS + Postgres RDS
 
 Welcome, engineer! This challenge will test your ability to provision infrastructure, deploy applications, and handle secure configuration — all with modern AWS tooling and automation.
@@ -131,3 +135,112 @@ terraform destroy
 
 ## 🙌 Good Luck
 We're excited to see your solution. Show us how you'd approach this in the real world! 🧠⚙️💥
+
+---
+
+## Solution
+
+### Deployment Guide
+
+Steps to deploy the solution using Terraform and trigger the application deployment via GitHub Actions.
+
+### 0. Prerequisites
+
+1. Ensure Terraform CLI is installed. ([Installation Guide](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli))
+1. Ensure AWS CLI is installed. ([Installation Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
+1. Configure your environment for AWS authentication for use with the Terraform AWS provider
+
+    - _Example:_ If using AWS IAM Identity Center: `aws sso login`
+    - Ensure the credentials have permissions to create resources
+
+### 1. Infrastructure (Terraform)
+
+1. Clone (or fork) the repository:
+
+    - You'll need your own copy of this repo to run the Github Action
+
+    ```bash
+    git clone <repository-url>
+    cd <repository-name>
+    ```
+
+1. Initialize Terraform:
+
+    ```bash
+    # Ensure you are in the terraform/infra directory
+    terraform init
+    ```
+
+1. Apply Terraform:
+
+    Create the AWS resources:
+
+    - Provide the `github_repo` variable (or set it in `terraform.tfvars`), specifying **your** own copy of this repo
+
+    ```bash
+    # Ensure you are in the terraform/infra directory
+    terraform apply -var "github_repo=brokenrecord/devops-code-challenge" # Replace with your repo details
+    ```
+
+On success, the necessary AWS infrastructure is provisioned. The ECS service is ready but waiting for a container image to be deployed to ECR.
+
+### 2. Container (GHA CI/CD)
+
+The container deployment is handled by a GitHub Actions workflow. This workflow needs information from the Terraform state to authenticate with AWS and deploy to the correct resources.
+
+1. Trigger the workflow
+
+    To provide the necessary infrastructure details to the workflow for this solution, we commit the `terraform.tfstate` file.
+
+    ```bash
+    git add terraform.tfstate
+    git commit -m "commit terraform.tfstate"
+    git push origin main
+    ```
+
+    Note on `terraform.tfstate`:
+
+    - Obviously, committing the tfstate to version control is **discouraged** in production or team environments. It can contain sensitive information and creates risks for state locking and conflicts when multiple people run Terraform.
+    - For this solution, I decided on committing the state file as a demonstration to allow the GitHub Action to easily access output values required for deployment **without** having you setup any GHA secret management or Terraform state backend configurations.
+    - In a real-world scenario, You'd use a Terraform remote state backend (like AWS S3 with DynamoDB locking) and pass values to the CI/CD pipeline via secure mechanisms like GitHub secrets.
+
+2. GitHub Action
+
+   Pushing the commit to `main` triggers the `deploy.yml` workflow, which:
+
+    - Checks out the code.
+    - Uses GitHub's OIDC provider to authenticate with AWS by assuming the IAM role created by Terraform (`__gha_gha_role_arn` output).
+    - Builds the Docker image located in the `app/` directory.
+    - Pushes the built Docker image to the AWS ECR repository created by Terraform (`__gha_ecr_repository` output).
+    - Updates the AWS ECS service (`__gha_ecs_service` output) within the cluster (`__gha_ecs_cluster` output) to use the new Docker image, triggering a new deployment task.
+
+### 3. Accessing the Application and Monitoring
+
+1. **Wait for deployment**. Allow a few minutes for the GitHub Action to complete, the ECS service to pull the new image, and the new task to become healthy and register with the Load Balancer (Target Group).
+
+2. Get the public URL of the deployed application from the Terraform output:
+
+    ```bash
+    # Ensure you are in the terraform/infra directory
+    terraform output url
+    ```
+
+    Access the printed URL in your browser.
+
+3. (optional) Get the CloudWatch Dashboard created by Terraform to monitor the health and performance metrics of the application and infrastructure:
+
+    ```bash
+    # Ensure you are in the terraform/infra directory
+    terraform output url_dashboard
+    ```
+
+    Access the printed URL in your browser.
+
+### 4. Cleanup
+
+To remove all deployed resources, run the following command:
+
+```bash
+# Ensure you are in the terraform/infra directory
+terraform destroy -var 'github_repo=brokenrecord/devops-code-challenge' # Replace with your repo details
+```

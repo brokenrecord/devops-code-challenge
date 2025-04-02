@@ -38,3 +38,9 @@ def hello():
             return {"message": "Hello, world! (no messages in DB)"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Basic health check endpoint
+@app.get("/health")
+def health():
+    return {"status": "ok"}
